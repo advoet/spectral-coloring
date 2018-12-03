@@ -2,7 +2,7 @@
 from graph_tool.all import *
 from graph_tool.topology import is_bipartite
 from random import randint, random
-from itertools import product, chain
+from itertools import product, chain, combinations
 
 tests = ((5, 11, 150, 5, 8401, 6859, 84035, (19,60,97,210)),
          (5, 19, 150, 5, 8401, 6859, 84035, (39,120,195,420)),
@@ -10,7 +10,7 @@ tests = ((5, 11, 150, 5, 8401, 6859, 84035, (19,60,97,210)),
          (10,11,150,10,8401,6859,168070,(10,0,0,12,0,0,25,0,2,4)))
 
 def main():
-    g2 = generate_strict_three_colorable(5, .4)
+    g2 = generate_strict_three_colorable(5, .5)
     graph_draw(g2, vertex_text = g2.vertex_index, output="three.png", fmt="auto")
     g = generate_test_graph(*tests[2])
     graph_draw(g, vertex_text = g.vertex_index, vertex_font_size=10,
@@ -18,16 +18,15 @@ def main():
 
 def generate_strict_three_colorable(k, p):
     """Generates a graph with 3k nodes of chromatic number 3"""
-    g = generate_three_colorable(k, p)
+    g = generate_n_colorable(3, k, p)
     while is_bipartite(g):
-        g = generate_three_colorable(k,p)
+        g = generate_n_colorable(3, k, p)
     return g
-    
+
 def generate_three_colorable(k, p):
     """Generates a three colorable graph with 3k nodes"""
     g = Graph(directed=False)
     g.add_vertex(3*k)
-    
     for vs in chain(product(range(0,k),range(k,2*k)), product(range(0,k),range(2*k,3*k)), product(range(k,2*k),range(2*k,3*k))):
         rand_edge(g, vs[0], vs[1], p)
     return g
@@ -36,7 +35,15 @@ def rand_edge(g, u, v, p):
     """Adds an edge with probability p"""
     if random() < p:
         g.add_edge(g.vertex(u), g.vertex(v))
-    
+
+def generate_n_colorable(n, k, p):
+    """Generates an n colorable graph with n*k nodes"""
+    g = Graph(directed=False)
+    g.add_vertex(n*k)
+    groups = [range(i*k,(i+1)*k) for i in range(0,n)]
+    for vs in chain(*[product(range_1,range_2) for range_1,range_2 in combinations(groups, 2)]):
+        rand_edge(g, vs[0], vs[1], p)
+    return g
     
 def generate_test_graph(chi, d, n, k, a, c, m, bs):
     g = Graph(directed=False)

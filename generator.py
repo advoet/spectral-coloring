@@ -24,7 +24,10 @@ def generate_strict_three_colorable(k, p):
     return g
 
 def generate_three_colorable(k, p):
-    """Generates a three colorable graph with 3k nodes"""
+    """Generates a three colorable graph with 3k nodes
+    
+    Not used anymore, replaced by generate_n_colorable with n=3
+    """
     g = Graph(directed=False)
     g.add_vertex(3*k)
     for vs in chain(product(range(0,k),range(k,2*k)), product(range(0,k),range(2*k,3*k)), product(range(k,2*k),range(2*k,3*k))):

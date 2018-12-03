@@ -1,6 +1,8 @@
 """Script to generate graphs with given chromatic number"""
 from graph_tool.all import *
-from random import randint
+from graph_tool.topology import is_bipartite
+from random import randint, random
+from itertools import product, chain
 
 tests = ((5, 11, 150, 5, 8401, 6859, 84035, (19,60,97,210)),
          (5, 19, 150, 5, 8401, 6859, 84035, (39,120,195,420)),
@@ -8,10 +10,34 @@ tests = ((5, 11, 150, 5, 8401, 6859, 84035, (19,60,97,210)),
          (10,11,150,10,8401,6859,168070,(10,0,0,12,0,0,25,0,2,4)))
 
 def main():
+    g2 = generate_strict_three_colorable(5, .4)
+    graph_draw(g2, vertex_text = g2.vertex_index, output="three.png", fmt="auto")
     g = generate_test_graph(*tests[2])
     graph_draw(g, vertex_text = g.vertex_index, vertex_font_size=10,
                output_size = (5000,5000), output="test.png", fmt = "auto")
 
+def generate_strict_three_colorable(k, p):
+    """Generates a graph with 3k nodes of chromatic number 3"""
+    g = generate_three_colorable(k, p)
+    while is_bipartite(g):
+        g = generate_three_colorable(k,p)
+    return g
+    
+def generate_three_colorable(k, p):
+    """Generates a three colorable graph with 3k nodes"""
+    g = Graph(directed=False)
+    g.add_vertex(3*k)
+    
+    for vs in chain(product(range(0,k),range(k,2*k)), product(range(0,k),range(2*k,3*k)), product(range(k,2*k),range(2*k,3*k))):
+        rand_edge(g, vs[0], vs[1], p)
+    return g
+
+def rand_edge(g, u, v, p):
+    """Adds an edge with probability p"""
+    if random() < p:
+        g.add_edge(g.vertex(u), g.vertex(v))
+    
+    
 def generate_test_graph(chi, d, n, k, a, c, m, bs):
     g = Graph(directed=False)
     g.add_vertex(n)
@@ -32,6 +58,7 @@ def generate_test_graph(chi, d, n, k, a, c, m, bs):
     return g
 
 def add_clique(clique_size, graph, ys, start_index):
+    """Adds a clique to a graph from a vector ys of vertex indices"""
     for i in range(0, clique_size-1):
         for j in range(i+1, clique_size):
             if graph.edge(graph.vertex(ys[(start_index + i) % len(ys)]),

@@ -77,5 +77,8 @@ def add_clique(clique_size, graph, ys, start_index):
             else:
                 graph.add_edge(graph.vertex(ys[(start_index + i) % len(ys)]),
                            graph.vertex(ys[(start_index + j) % len(ys)]))
+
+def add_clique_2(clique_size, graph, ys, start_index):
+    graph.add_edge_list([pairs for pairs in combinations([ys[i % len(ys)] for i in range(start_index, start_index + clique_size)])])
                 
 if __name__ == "__main__": main()

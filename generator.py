@@ -12,7 +12,7 @@ tests = ((5, 11, 150, 5, 8401, 6859, 84035, (19,60,97,210)),
 def main():
     g2 = generate_strict_three_colorable(5, .5)
     graph_draw(g2, vertex_text = g2.vertex_index, output="three.png", fmt="auto")
-    g = generate_test_graph(*tests[2])
+    g = generate_test_graph(*tests[0])
     graph_draw(g, vertex_text = g.vertex_index, vertex_font_size=10,
                output_size = (5000,5000), output="test.png", fmt = "auto")
 
@@ -44,8 +44,7 @@ def generate_n_colorable(n, k, p):
     g = Graph(directed=False)
     g.add_vertex(n*k)
     groups = [range(i*k,(i+1)*k) for i in range(0,n)]
-    for vs in chain(*[product(range_1,range_2) for range_1,range_2 in combinations(groups, 2)]):
-        rand_edge(g, vs[0], vs[1], p)
+    g.add_edge_list([pairs for pairs in chain(*[product(range_1,range_2) for range_1,range_2 in combinations(groups, 2)]) if random() < p])
     return g
     
 def generate_test_graph(chi, d, n, k, a, c, m, bs):
@@ -60,8 +59,9 @@ def generate_test_graph(chi, d, n, k, a, c, m, bs):
     
     start_index = 0
     clique_size = len(bs)+1
-    for i in range(0, len(bs)):
-        for _ in range(0, bs[i]):
+    for b in bs:
+        for _ in range(0, b):
+            print(b)
             add_clique(clique_size, g, ys, start_index)
             start_index = (start_index + clique_size) % n
         clique_size-=1

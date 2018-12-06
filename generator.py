@@ -24,25 +24,9 @@ tests = ((150, 5, 8401, 6859, 84035, (19,60,97,210)),
          (450, 25, 8401, 6859, 420175, (31, 0, 0, 0, 0, 0, 0, 0, 0, 63, 0, 0, 0, 0, 0, 0, 0, 0, 94, 0, 0, 0, 0, 3118)))
 
 def main():
-    g = Graph()
-    g.add_vertex(200)
-    start_1 = time.time()
-    add_clique(100, g, range(0,200), 18)
-    end_1 = time.time()
-    print(end_1-start_1)
-
-    g = Graph()
-    g.add_vertex(200)
-    start_1 = time.time()
-    add_clique_2(100, g, range(0,200), 18)
-    end_1 = time.time()
-    print(end_1-start_1)
-
     g2 = generate_strict_three_colorable(5, .5)
-    for v in range(0,450,-1):
-        if len(g.get_out_edges(v))==0:
-            g.remove_vertex(v)
     graph_draw(g2, vertex_text = g2.vertex_index, output="three.png", fmt="auto")
+
     g = generate_test_graph(*tests[-1])
     graph_draw(g, vertex_text = g.vertex_index, vertex_font_size=10,
                 output="test.png", fmt = "auto")
@@ -73,7 +57,7 @@ def rand_edge(g, u, v, p):
 def generate_strict_n_colorable(n, k, p):
     """Generates a graph with chromatic number n by introducing an n-clique"""
     g = generate_n_colorable(n, k, p)
-    add_clique_2(n, g, [i*k for i in range(0,n)])
+    add_clique_2(n, g, [i*k for i in range(0,n)], 0)
 
 def generate_n_colorable(n, k, p):
     """Generates an n colorable graph with n*k nodes, edges with probability p"""

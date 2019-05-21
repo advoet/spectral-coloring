@@ -1,11 +1,15 @@
 """Script to generate graphs with given chromatic number"""
 from graph_tool.all import *
 from graph_tool.topology import is_bipartite
+import graph_tool.generation as generation
+import graph_tool.spectral as spectral
+import graph_tool.topology as topology
 from random import randint, random
 from itertools import product, chain, combinations
 import numpy
 import numpy.linalg as linalg
 import time
+import matplotlib.pyplot as plt
 
 
 # Tests from Leighton Appendix C
@@ -34,6 +38,32 @@ def main():
     g = generate_test_graph(*tests[-1])
     graph_draw(g, vertex_text = g.vertex_index, vertex_font_size=10,
                 output="test.png", fmt = "auto")
+
+
+def generateGraphByDegree(n, minDegree,  maxDegree):
+    """Generates a random graph on n vertices with degree in range(minDegree, maxDegree)"""
+    def deg():
+        return random.randint(minDegree,maxDegree)
+
+    g = generation.random_graph(n, deg, False)
+    return g
+
+
+# RANDOM GRAPH WITH EDGES GENERATED WITH FIXED PROBABILITY
+def generateGraphByProbability(n, p):
+    """Generates a random graph on n vertices with edge probability p"""
+    g = gt.Graph(directed=False)
+    g.add_vertex(n)
+    for (u,v) in combinations(g.get_vertices(), 2):
+        if random.random() < p:
+            g.add_edge(u,v)  
+    # give the orphans a hand
+    for v in g.vertices():
+        if v.out_degree() == 0:
+            nonce = random.randint(1, g.num_vertices()-1)
+            g.add_edge(int(v), (int(v) + nonce) % g.num_vertices())
+            
+    return g
 
 def generate_strict_three_colorable(k, p):
     """Generates a graph with 3k nodes of chromatic number 3"""

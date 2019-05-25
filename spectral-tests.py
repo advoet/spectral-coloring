@@ -32,13 +32,27 @@ tests = ((150, 5, 8401, 6859, 84035, (19,60,97,210)),
 
 
 
-#For a given graph g, compute the chromatic bounds from spectral theory and return
-# list of results.
+
 def compute_bounds(g):
+    """Computes bounds for chromatic number based on hoffman bound, generalized hoffman bound, woc-elp conjetural bound, and wilf's theorem.
+
+    Takes a graph and computes the bounds, then outputs a summary array which includes vertex degree information and an estimate for
+    the actual chromatic number of the graph based on actual colorings.
+
+    Args:
+        g (graph_tool graph)
+
+    Returns:
+        numpy array [hoffman bound, generalized hoffman bound, woc-elp bound, wilf bound, max degree, average degree, computed coloring number]
+    """
+
+    # Get degree info
     n = g.num_vertices()
     m = g.num_edges()
     average_degree = 2*m/n
     max_degree = max([vertex.out_degree() for vertex in g.vertices()])
+
+    # Get spectral info
     A = spectral.adjacency(g)
     Aw, Av = linalg.eig(A.todense())
     eigenvalues = sorted(Aw, reverse=True)
@@ -58,17 +72,30 @@ def compute_bounds(g):
     return numpy.array(results)
 
 
-#Uses a fixed graph generation, passed via lambda as generator, to generate N
-#graphs and average the bounds from compute_bounds method
 def compute_average_bounds( generator, N):
+    """ Uses a fixed graph generation method to generate N graphs, compute spectral chromatic bounds for each and average them.
+
+    Example: compute_average_bounds( lambda _: generate_strict_n_colorable(100, 3, .9), 5)
+                Generates 5 graphs via generate_strict_n_colorable(100, 3, .9) and computes the averages of the bounds from each
+
+    Args:
+        generator (method): A fixed instance of a graph generation method, to be repeated N times and produce similar random graphs
+        N (int): number of graphs to compute bounds for   
+
+    Returns:
+        labeled list of bounds in a printable format
+    """
+
     graphs = map(generator, range(N))
     bounds = map(computeBounds, graphs)
     averages = sum(bounds)/N
     result = zip(['hoff', 'ghoff', 'wocelp', 'wilf', 'max deg', 'avg deg','seq'], averages)
     return list(map(lambda x: x[0] + ': ' + str(x[1]), result))
 
-#Prints basic graph statistics
+
 def print_stats(g):
+    """ Prints a list of vertices and edges, along with min/max/avergae degree information"""
+
     v = len(g.get_vertices())
     e = len(g.get_edges())
     average_degree = 2*e/v
@@ -90,20 +117,68 @@ def print_stats(g):
 
 ############
 
+
+def compute_hoff(eigenvalues):
+    """ Uses a result of Hoffman and Howes to compute a lower bound on chromatic number based on largest and smallest eigenvalues
+
+    Args:
+        eigenvalues (int[]): list of eigenvalues of a graph, sorted from largest to smallest
+
+    Returns:
+        lower bound on the chromatic number
+
+    """
+    return 1 + hoffman_quotient(eigenvalues,1)
+
 def hoffman_quotient(eigenvalues, m):
+    """ Takes a quotient of the sum of the mth largest eigenvalues by sum of mth smallest eigenvalues. 
+
+    Helper function for compute_hoff and compute_gen_hoff
+
+    Args:
+        eigenvalues (int[]): list of eigenvalues of a graph, sorted from largest to smallest
+        m (int): quotient m^th largest by m^th smallest eigenvalue
+
+    Returns:
+        0 if quotient is undefined
+        -(sum of m largest)/(sum of m smallest) otherwise
+    """
+
     num = sum(eigenvalues[:m])
     den = sum(eigenvalues[-m:])
     if den == 0:
         return 0
     return -num/den
 
-def compute_hoff(eigenvalues):
-    return 1 + hoffman_quotient(eigenvalues,1)
     
 def compute_gen_hoff(eigenvalues):
+    """ Computes a generalized version of Hoffman/Howes lower bound on chromatic number, using all eigenvalues
+
+        Determines the best bound via hoffman_quotient method. In particular, m=1 gives the original bound so the lower
+        bound from this method will be the same or better than the bound from compute_hoff
+
+    Args:
+        eigenvalues (int[]): list of eigenvalues of a graph, sorted from largest to smallest
+
+    Returns:
+        lower bound on chromatic number
+    """
+
     return 1 + max([hoffman_quotient(eigenvalues,m) for m in range(1,n)])
     
 def compute_woc_elp(eigenvalues):
+    """ Computes a conjectural lower bound for the chromatic number by Wocjan and Elphick.
+
+    The bound is the sum of the squares of positive eigenvalues, divided by the sum of the squares of the negative eigenvalues.
+
+    Args:
+        eigenvalues (int[]): list of eigenvalues of a graph, sorted from largest to smallest
+
+    Returns:
+        lower bound on chromatic number
+
+    """
+
     posValues = list(filter(lambda x: x > 0, adjValues))
     negValues = list(filter(lambda x: x < 0, adjValues))
     Splus = sum(map(lambda x: pow(x,2), posValues))
@@ -111,6 +186,7 @@ def compute_woc_elp(eigenvalues):
     return 1 + Splus/Sminus
 
 def compute_wilf(eigenvalues):
+    """ Wilf's theorem gives an upper bound on chromatic number by 1 + largest eigenvalue """
     return 1 + eigenvalues[0]
 
 
@@ -121,6 +197,14 @@ def compute_wilf(eigenvalues):
 ###############
 
 def ordered_coloring(g):
+    """Uses graph_tool.topology.sequential_vertex_coloring with vertices arranged by degree to color the graph.
+
+    Sequentially colors graph starting with vertices of small degree.
+
+    Returns:
+        (number of colors, coloring)
+    """
+
     prop = g.new_vertex_property("int32_t")
     randIndices = numpy.random.permutation(g.num_vertices())
     randDegrees = [g.vertex(i).out_degree() for i in randIndices]
@@ -130,18 +214,41 @@ def ordered_coloring(g):
     return (max(colors.a)+1,  colors)
 
 def random_coloring(g):
+    """Uses graph_tool.topology.sequential_vertex_coloring with vertices in random order.
+
+    Returns:
+        (number of colors, coloring)
+    """
+
     prop = g.new_vertex_property("int32_t")
     prop.a = numpy.random.permutation(g.num_vertices())
     colors = topology.sequential_vertex_coloring(g, order=prop)
     return (max(colors.a)+1,  colors)
 
 def compute_coloring(g, coloringType, iterations):
+    """ Repeatedly attempts to color the graph [g] using a coloring algorithm [coloringType]
+
+    Args:
+        g (graph_tool graph): the graph
+        coloringType (method): coloring algorithm, e.g. random_coloring or ordered_coloring
+        iterations (int): number of iterations to run
+
+    Returns:
+        (number of colors, coloring) for best coloring across iterations.
+    """
+
     colorings = list(map(lambda _: coloringType(g), range(iterations)))
     minIndex = numpy.argmin([coloring[0] for coloring in colorings])    
     
     return colorings[minIndex]
 
 def get_best_coloring(g):
+    """Uses compute_coloring for 500 iterations of random_coloring and 50 iterations of ordered_coloring to find the best coloring.
+
+    Returns:
+        (number of colors, coloring) for best coloring across iterations.
+    """
+
     colorings = []
     colorings.append(compute_coloring(g, random_coloring, 500))
     colorings.append(compute_coloring(g, ordered_coloring, 50))
@@ -149,7 +256,11 @@ def get_best_coloring(g):
     
     return colorings[bestIndex]
 
-
+########
+#
+# Sample code for how to use compute_average_bounds
+#
+########
 
 # compute_average_bounds( lambda _: generate_test_graph(*tests[-1]), 5)
 
@@ -160,28 +271,7 @@ def get_best_coloring(g):
 # compute_average_bounds( lambda _: generate_by_degree(50, 2, 4), 15)
 
 
-# compute_average_bounds( lambda _: generate_by_degree(100, 2, 4), 15)
-
-
-# compute_average_bounds( lambda _: generate_by_probability(20, .5), 15)
-
-
 # compute_average_bounds( lambda _: generate_by_probability(100, .3), 15)
-
-
-# compute_average_bounds( lambda _: generate_by_probability(100, .5), 15)
-
-
-# compute_average_bounds( lambda _: generate_by_probability(100, .7), 15)
-
-
-# compute_average_bounds( lambda _: generate_by_probability(100, .9), 15)
-
-
-# compute_average_bounds( lambda _: generate_by_probability(20, .3), 15)
-
-
-# compute_average_bounds( lambda _: generate_by_probability(20, .1), 20)
 
 
 
